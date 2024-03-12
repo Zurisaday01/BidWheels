@@ -2,6 +2,7 @@ using AuctionService.Data;
 using AuctionService.DTOs;
 using AuctionService.Model;
 using AutoMapper;
+using AutoMapper.QueryableExtensions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -21,15 +22,37 @@ public class AuctionsControllers : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<List<AuctionDto>>> GetAllAuctions()
+    public async Task<ActionResult<List<AuctionDto>>> GetAllAuctions(string date)
     {
-        var auctions = await _context.Auctions
-            .Include(x => x.Item)
-            .OrderBy(x => x.Item.Make)
-            .ToListAsync();
+        // you can continue to build upon it with additional LINQ operations before executing the query against the database.
+        var query = _context.Auctions.OrderBy(x => x.Item.Make).AsQueryable();
 
-        return _mapper.Map<List<AuctionDto>>(auctions);
+        if (!string.IsNullOrEmpty(date))
+        {
+            query = query.Where(x => x.UpdatedAt.CompareTo(DateTime.Parse(date).ToUniversalTime()) > 0);
+        }
+
+        return await query.ProjectTo<AuctionDto>(_mapper.ConfigurationProvider).ToListAsync();
     }
+
+    //     var query = _context.Auctions
+    //                     .OrderBy(x => x.Item.Make)
+    //                     .AsQueryable();
+
+    // // Filter auctions for a specific make
+    // query = query.Where(a => a.Item.Make == "SomeMake");
+
+    // // Further filter auctions based on another condition
+    // query = query.Where(a => a.StartTime > DateTime.Now);
+
+    // // Select only specific properties
+    // var result = query.Select(a => new 
+    //                                 {
+    //                                     AuctionId = a.Id,
+    //                                     ItemName = a.Item.Name,
+    //                                     StartTime = a.StartTime
+    //                                 })
+    //                     .ToList();
 
     [HttpGet("{id}")]
     public async Task<ActionResult<AuctionDto>> GetAuctionById(Guid id)
